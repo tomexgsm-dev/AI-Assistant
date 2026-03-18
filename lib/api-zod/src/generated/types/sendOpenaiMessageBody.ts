@@ -8,4 +8,6 @@
 
 export interface SendOpenaiMessageBody {
   content: string;
+  imageBase64?: string;
+  imageMimeType?: string;
 }

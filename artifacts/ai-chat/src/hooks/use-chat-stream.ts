@@ -2,22 +2,31 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getListOpenaiMessagesQueryKey } from '@workspace/api-client-react';
 
+export interface SendMessageOptions {
+  imageBase64?: string;
+  imageMimeType?: string;
+}
+
 export function useChatStream(conversationId: number | undefined) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
   const queryClient = useQueryClient();
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, options?: SendMessageOptions) => {
     if (!conversationId) return;
     
     setIsStreaming(true);
     setStreamingMessage('');
 
     try {
+      const body: Record<string, string> = { content };
+      if (options?.imageBase64) body.imageBase64 = options.imageBase64;
+      if (options?.imageMimeType) body.imageMimeType = options.imageMimeType;
+
       const res = await fetch(`/api/openai/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify(body),
       });
 
       if (!res.body) throw new Error('No response body');
@@ -55,7 +64,6 @@ export function useChatStream(conversationId: number | undefined) {
       console.error('[SSE] Stream error', err);
     } finally {
       setIsStreaming(false);
-      // Invalidate the messages query so the finalized message from the DB appears
       queryClient.invalidateQueries({
         queryKey: getListOpenaiMessagesQueryKey(conversationId)
       });

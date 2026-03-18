@@ -165,10 +165,17 @@ router.post("/conversations/:id/messages", async (req, res) => {
     return;
   }
 
+  const hasImage = !!body.imageBase64;
+  const dbContent = hasImage
+    ? body.content
+      ? `[📷 Obraz dołączony]\n${body.content}`
+      : "[📷 Obraz dołączony]"
+    : body.content;
+
   await db.insert(messages).values({
     conversationId: id,
     role: "user",
-    content: body.content,
+    content: dbContent,
   });
 
   const history = await db
@@ -194,12 +201,36 @@ router.post("/conversations/:id/messages", async (req, res) => {
     ? `${basePrompt}\n\n---\n${memoryBlock}`
     : basePrompt;
 
-  const chatMessages = [
+  // Build history without the last user message (we'll add it with vision format if needed)
+  const historyWithoutLast = history.slice(0, -1);
+
+  // Build the last user message — with image if provided
+  type OpenAIMessage =
+    | { role: "system" | "user" | "assistant"; content: string }
+    | { role: "user"; content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> };
+
+  const lastUserMessage: OpenAIMessage = hasImage
+    ? {
+        role: "user",
+        content: [
+          { type: "text", text: body.content || "Opisz i przeanalizuj ten obraz." },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${body.imageMimeType ?? "image/jpeg"};base64,${body.imageBase64}`,
+            },
+          },
+        ],
+      }
+    : { role: "user", content: body.content };
+
+  const chatMessages: OpenAIMessage[] = [
     { role: "system" as const, content: fullSystemPrompt },
-    ...history.map((m) => ({
+    ...historyWithoutLast.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     })),
+    lastUserMessage,
   ];
 
   res.setHeader("Content-Type", "text/event-stream");
