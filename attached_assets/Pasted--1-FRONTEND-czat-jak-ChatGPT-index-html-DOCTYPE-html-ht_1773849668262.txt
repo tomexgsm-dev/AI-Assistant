@@ -1,0 +1,123 @@
+🧱 1. FRONTEND (czat jak ChatGPT)
+📁 index.html
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Twoje AI</title>
+  <style>
+    body { font-family: Arial; background: #0f172a; color: white; }
+    #chat { max-width: 600px; margin: auto; }
+    .msg { padding: 10px; margin: 10px; border-radius: 10px; }
+    .user { background: #1e293b; text-align: right; }
+    .ai { background: #334155; text-align: left; }
+    input { width: 80%; padding: 10px; }
+    button { padding: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="chat"></div>
+
+<div style="text-align:center;">
+  <input id="input" placeholder="Napisz coś..." />
+  <button onclick="send()">Wyślij</button>
+</div>
+
+<script>
+let user_id = localStorage.getItem("user_id");
+if (!user_id) {
+  user_id = "user_" + Math.random().toString(36).substring(2);
+  localStorage.setItem("user_id", user_id);
+}
+
+async function send() {
+  const input = document.getElementById("input");
+  const text = input.value;
+
+  addMessage(text, "user");
+
+  const res = await fetch("/chat", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ message: text, user_id })
+  });
+
+  const data = await res.json();
+  addMessage(data.reply, "ai");
+
+  input.value = "";
+}
+
+function addMessage(text, type) {
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+  div.innerText = text;
+  document.getElementById("chat").appendChild(div);
+}
+</script>
+
+</body>
+</html>
+🔐 2. LOGOWANIE (Supabase)
+
+W Supabase:
+
+👉 Authentication → Enable Email login
+
+📁 dodaj do HTML (logowanie):
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script>
+const supabase = supabase.createClient(
+  "TWÓJ_URL",
+  "TWÓJ_KEY"
+);
+
+async function login() {
+  const email = prompt("Email:");
+  const { error } = await supabase.auth.signInWithOtp({ email });
+  if (!error) alert("Sprawdź maila!");
+}
+</script>
+
+<button onclick="login()">Zaloguj</button>
+💸 3. SYSTEM PRO (zarabianie)
+🔥 opcja najprostsza:
+
+Dodaj do Supabase tabelę:
+
+users
+
+kolumny:
+
+id
+
+email
+
+plan (free / pro)
+
+🧠 w backendzie (server.js)
+
+Dodaj sprawdzanie:
+
+async function isPro(user_id) {
+  const { data } = await supabase
+    .from("users")
+    .select("plan")
+    .eq("id", user_id)
+    .single();
+
+  return data?.plan === "pro";
+}
+🔒 ograniczenia FREE
+
+W /chat:
+
+const pro = await isPro(user_id);
+
+if (!pro && message.length > 200) {
+  return res.json({
+    reply: "🔒 Wersja darmowa ma limit. Kup PRO."
+  });
+}
