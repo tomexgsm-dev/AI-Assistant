@@ -1,0 +1,13 @@
+packages:
+  "react-markdown": "Rendering markdown in chat messages for rich text formatting"
+  "remark-gfm": "GitHub flavored markdown support for tables and lists in chat"
+  "date-fns": "Formatting conversation timestamps in a human-readable way"
+  "lucide-react": "Beautiful, consistent icons for the user interface"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes safely without conflicts"
+  "framer-motion": "Smooth animations for message appearance and list transitions"
+
+images:
+  - path: "artifacts/ai-chat/public/images/empty-state-bg.png"
+    description: "A minimal, dark, abstract geometric mesh background with subtle deep indigo and slate gray tones. Very professional, sleek, and unobtrusive."
+    aspect_ratio: "16:9"
