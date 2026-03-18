@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout";
-import { useListOpenaiImages, useGenerateOpenaiImage, useDeleteOpenaiImage, getListOpenaiImagesQueryKey } from "@workspace/api-client-react";
+import { useListOpenaiImages, useDeleteOpenaiImage, getListOpenaiImagesQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Trash2, Download, Loader2, ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/i18n";
+import { useUsage } from "@/hooks/use-usage";
+import { LimitModal } from "@/components/limit-modal";
+import { getClientId } from "@/lib/client-id";
 
 const SIZES = [
   { label: "1024×1024", value: "1024x1024" },
@@ -28,19 +31,13 @@ export default function ImagesPage() {
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState<"1024x1024" | "512x512" | "256x256">("1024x1024");
   const [selectedImage, setSelectedImage] = useState<{ id: number; b64Data: string; prompt: string } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const { t } = useI18n();
+  const { refresh: refreshUsage } = useUsage();
 
   const { data: images, isLoading } = useListOpenaiImages();
-
-  const generateMutation = useGenerateOpenaiImage({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListOpenaiImagesQueryKey() });
-        setPrompt("");
-      }
-    }
-  });
 
   const deleteMutation = useDeleteOpenaiImage({
     mutation: {
@@ -51,10 +48,35 @@ export default function ImagesPage() {
     }
   });
 
-  const handleGenerate = (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim() || generateMutation.isPending) return;
-    generateMutation.mutate({ data: { prompt: prompt.trim(), size } });
+    if (!prompt.trim() || isGenerating) return;
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/openai/images", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-client-id": getClientId(),
+        },
+        body: JSON.stringify({ prompt: prompt.trim(), size }),
+      });
+
+      if (res.status === 429) {
+        setLimitModalOpen(true);
+        return;
+      }
+
+      if (!res.ok) throw new Error("Błąd generowania");
+
+      await queryClient.invalidateQueries({ queryKey: getListOpenaiImagesQueryKey() });
+      await refreshUsage();
+      setPrompt("");
+    } catch (err) {
+      console.error("[Images] Generate error:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleStyleClick = (stylePrompt: string) => {
@@ -70,6 +92,7 @@ export default function ImagesPage() {
 
   return (
     <Layout>
+      <LimitModal open={limitModalOpen} type="image" onClose={() => setLimitModalOpen(false)} />
       <div className="flex flex-col h-full absolute inset-0 overflow-y-auto">
         <div className="max-w-5xl mx-auto w-full px-4 md:px-8 py-8 pb-32">
 
@@ -133,15 +156,15 @@ export default function ImagesPage() {
 
                 <button
                   type="submit"
-                  disabled={!prompt.trim() || generateMutation.isPending}
+                  disabled={!prompt.trim() || isGenerating}
                   className={cn(
                     "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                    prompt.trim() && !generateMutation.isPending
+                    prompt.trim() && !isGenerating
                       ? "bg-primary text-primary-foreground hover:-translate-y-0.5 shadow-md"
                       : "bg-secondary text-muted-foreground cursor-not-allowed"
                   )}
                 >
-                  {generateMutation.isPending ? (
+                  {isGenerating ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {t.images.generating}
@@ -156,7 +179,7 @@ export default function ImagesPage() {
               </div>
             </form>
 
-            {generateMutation.isPending && (
+            {isGenerating && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

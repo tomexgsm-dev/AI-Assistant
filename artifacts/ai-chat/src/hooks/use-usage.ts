@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { getClientId } from "@/lib/client-id";
 
 export interface UsageData {
@@ -8,26 +9,29 @@ export interface UsageData {
   date: string;
 }
 
+const USAGE_QUERY_KEY = ["nexus-usage"];
+
+async function fetchUsage(): Promise<UsageData> {
+  const res = await fetch("/api/openai/usage", {
+    headers: { "x-client-id": getClientId() },
+  });
+  if (!res.ok) throw new Error("Failed to fetch usage");
+  return res.json();
+}
+
 export function useUsage() {
-  const [usage, setUsage] = useState<UsageData | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: usage } = useQuery({
+    queryKey: USAGE_QUERY_KEY,
+    queryFn: fetchUsage,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
 
   const refresh = useCallback(async () => {
-    try {
-      const res = await fetch("/api/openai/usage", {
-        headers: { "x-client-id": getClientId() },
-      });
-      if (res.ok) {
-        const data: UsageData = await res.json();
-        setUsage(data);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: USAGE_QUERY_KEY });
+  }, [queryClient]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { usage, refresh };
+  return { usage: usage ?? null, refresh };
 }
