@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import ChatPage from "@/pages/chat";
 import ImagesPage from "@/pages/images";
+import AppsPage from "@/pages/apps";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/c/:id" component={ChatPage} />
       <Route path="/images" component={ImagesPage} />
+      <Route path="/apps" component={AppsPage} />
       <Route component={NotFound} />
     </Switch>
   );

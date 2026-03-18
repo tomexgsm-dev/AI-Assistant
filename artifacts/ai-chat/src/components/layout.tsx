@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
-import { MessageSquare, Plus, Trash2, Menu, X, Command, Sparkles, Image } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Menu, X, Command, Sparkles, Image, LayoutGrid } from "lucide-react";
 import { 
   useListOpenaiConversations, 
   useCreateOpenaiConversation, 
@@ -11,6 +11,12 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+
+const APP_EMOJIS: Record<string, string> = {
+  writer: "✍️", coder: "💻", translator: "🌍", analyst: "📊",
+  marketing: "📣", email: "📧", summarizer: "📝", brainstorm: "💡",
+  diet: "🥗", travel: "✈️", fitness: "💪", law: "⚖️",
+};
 
 interface LayoutProps {
   children: ReactNode;
@@ -110,6 +116,18 @@ export function Layout({ children }: LayoutProps) {
             <Image className="w-4 h-4 shrink-0" />
             Obrazy AI
           </Link>
+          <Link
+            href="/apps"
+            className={cn(
+              "w-full flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 border",
+              location === "/apps"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground border-border/50"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-foreground border-transparent"
+            )}
+          >
+            <LayoutGrid className="w-4 h-4 shrink-0" />
+            Aplikacje
+          </Link>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -148,7 +166,11 @@ export function Layout({ children }: LayoutProps) {
                       )}
                     >
                       <Link href={`/c/${conv.id}`} className="flex-1 flex items-center gap-3 truncate">
-                        <MessageSquare className={cn("w-4 h-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                        {conv.appId && APP_EMOJIS[conv.appId] ? (
+                          <span className="shrink-0 text-base leading-none">{APP_EMOJIS[conv.appId]}</span>
+                        ) : (
+                          <MessageSquare className={cn("w-4 h-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                        )}
                         <span className="truncate">{conv.title}</span>
                       </Link>
                       <button

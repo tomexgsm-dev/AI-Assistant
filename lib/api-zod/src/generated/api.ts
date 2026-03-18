@@ -21,6 +21,7 @@ export const HealthCheckResponse = zod.object({
 export const ListOpenaiConversationsResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
+  appId: zod.string().optional(),
   createdAt: zod.date(),
 });
 export const ListOpenaiConversationsResponse = zod.array(
@@ -32,6 +33,8 @@ export const ListOpenaiConversationsResponse = zod.array(
  */
 export const CreateOpenaiConversationBody = zod.object({
   title: zod.string(),
+  systemPrompt: zod.string().optional(),
+  appId: zod.string().optional(),
 });
 
 /**

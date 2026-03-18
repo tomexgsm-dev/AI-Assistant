@@ -8,4 +8,6 @@
 
 export interface CreateOpenaiConversationBody {
   title: string;
+  systemPrompt?: string;
+  appId?: string;
 }

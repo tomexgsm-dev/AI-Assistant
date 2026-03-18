@@ -23,7 +23,11 @@ router.post("/conversations", async (req, res) => {
   const body = CreateOpenaiConversationBody.parse(req.body);
   const [row] = await db
     .insert(conversations)
-    .values({ title: body.title })
+    .values({
+      title: body.title,
+      appId: body.appId ?? null,
+      systemPrompt: body.systemPrompt ?? null,
+    })
     .returning();
   res.status(201).json(row);
 });
@@ -100,11 +104,13 @@ router.post("/conversations/:id/messages", async (req, res) => {
     .where(eq(messages.conversationId, id))
     .orderBy(messages.createdAt);
 
+  const defaultSystemPrompt =
+    "Jesteś inteligentnym, ogólnym AI asystentem. Pomagasz w każdej dziedzinie życia.";
+
   const chatMessages = [
     {
       role: "system" as const,
-      content:
-        "Jesteś inteligentnym, ogólnym AI asystentem. Pomagasz w każdej dziedzinie życia.",
+      content: conversation.systemPrompt ?? defaultSystemPrompt,
     },
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",

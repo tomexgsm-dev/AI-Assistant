@@ -202,6 +202,8 @@ components:
           type: integer
         title:
           type: string
+        appId:
+          type: string
         createdAt:
           type: string
           format: date-time
@@ -233,6 +235,10 @@ components:
       type: object
       properties:
         title:
+          type: string
+        systemPrompt:
+          type: string
+        appId:
           type: string
       required:
         - title
