@@ -16,6 +16,10 @@ const APP_EMOJIS: Record<string, string> = {
   writer: "✍️", coder: "💻", translator: "🌍", analyst: "📊",
   marketing: "📣", email: "📧", summarizer: "📝", brainstorm: "💡",
   diet: "🥗", travel: "✈️", fitness: "💪", law: "⚖️",
+  canva: "🎨", asana: "📋", clickup: "⚡", brand24: "📡",
+  quiz: "🧠", knowledgegraph: "🗺️", sales: "💼", leads: "🎯",
+  meetings: "🤝", expenses: "💰", website: "🌐", appbuilder: "🏗️",
+  sentiment: "📈", pdf: "📄", airtable: "🗃️",
 };
 
 interface LayoutProps {
