@@ -8,7 +8,7 @@ import { useChatStream } from "@/hooks/use-chat-stream";
 import { useUsage } from "@/hooks/use-usage";
 import { UsageBanner } from "@/components/usage-banner";
 import { LimitModal } from "@/components/limit-modal";
-import { Send, Loader2, Brain, Paperclip, X } from "lucide-react";
+import { Send, Loader2, Brain, Paperclip, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 
@@ -28,6 +28,7 @@ export default function ChatPage() {
   const { sendMessage, isStreaming, streamingMessage, streamError, clearError } = useChatStream(conversationId);
   const { usage, refresh: refreshUsage } = useUsage();
   const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
   
   const [input, setInput] = useState("");
   const [optimisticUserMsg, setOptimisticUserMsg] = useState<string | null>(null);
@@ -105,6 +106,20 @@ export default function ChatPage() {
   const removeImage = () => {
     setAttachedImage(null);
     setImageError(null);
+  };
+
+  const handleClearChat = async () => {
+    if (!conversationId || isStreaming || clearingChat) return;
+    setClearingChat(true);
+    try {
+      await fetch(`${API_BASE}/openai/conversations/${conversationId}/messages`, {
+        method: "DELETE",
+      });
+      queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(conversationId) });
+      setOptimisticUserMsg(null);
+    } finally {
+      setClearingChat(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -307,6 +322,23 @@ export default function ChatPage() {
                 >
                   <Paperclip className="w-5 h-5" />
                 </button>
+
+                {/* Clear chat button — only when there are messages */}
+                {messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearChat}
+                    disabled={isStreaming || clearingChat}
+                    className="p-2.5 rounded-xl shrink-0 mb-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Wyczyść czat"
+                  >
+                    {clearingChat ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-5 h-5" />
+                    )}
+                  </button>
+                )}
 
                 <textarea
                   ref={textareaRef}
