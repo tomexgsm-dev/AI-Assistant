@@ -179,6 +179,12 @@ router.delete("/conversations/:id", async (req, res) => {
   res.status(204).end();
 });
 
+router.delete("/conversations/:id/messages", async (req, res) => {
+  const id = Number(req.params.id);
+  await db.delete(messages).where(eq(messages.conversationId, id));
+  res.status(204).end();
+});
+
 router.get("/conversations/:id/messages", async (req, res) => {
   const id = Number(req.params.id);
   const msgs = await db
