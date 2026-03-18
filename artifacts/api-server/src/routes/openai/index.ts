@@ -76,6 +76,7 @@ async function generateAndSaveSummary(conversationId: number, msgs: { role: stri
     const text = msgs.map((m) => `${m.role}: ${m.content}`).join("\n");
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
+      max_completion_tokens: 512,
       messages: [
         {
           role: "system",
@@ -96,6 +97,7 @@ async function generateAndSaveSummary(conversationId: number, msgs: { role: stri
       const profileInfo = await getOrCreateProfile();
       const profileCompletion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
+        max_completion_tokens: 512,
         messages: [
           {
             role: "system",
@@ -298,7 +300,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
 
   let fullResponse = "";
 
-  // Use OpenAI Vision when image is attached; Mistral 7B for text-only
+  // Use OpenAI Vision when image is attached; HuggingFace Mistral for text-only (free)
   const stream = hasImage
     ? await openai.chat.completions.create({
         model: "gpt-4o",
@@ -307,7 +309,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
         stream: true,
       })
     : await openrouter.chat.completions.create({
-        model: "mistralai/mistral-7b-instruct-v0.1",
+        model: "openai/gpt-4o-mini",
         max_tokens: 8192,
         messages: chatMessages as Parameters<typeof openrouter.chat.completions.create>[0]["messages"],
         stream: true,
