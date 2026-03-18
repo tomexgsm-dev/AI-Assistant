@@ -20,6 +20,7 @@ interface AppDef {
 const APP_DEFS: AppDef[] = [
   { id: "writer",       emoji: "✍️", color: "from-violet-500/20 to-purple-600/20 border-violet-500/30",   category: "featured" },
   { id: "coder",        emoji: "💻", color: "from-blue-500/20 to-cyan-600/20 border-blue-500/30",         category: "featured" },
+  { id: "photoeditor",  emoji: "🖼️", color: "from-fuchsia-500/20 to-pink-600/20 border-fuchsia-500/30",  category: "featured" },
   { id: "translator",   emoji: "🌍", color: "from-green-500/20 to-emerald-600/20 border-green-500/30",    category: "featured" },
   { id: "analyst",      emoji: "📊", color: "from-orange-500/20 to-amber-600/20 border-orange-500/30",    category: "featured" },
   { id: "marketing",    emoji: "📣", color: "from-pink-500/20 to-rose-600/20 border-pink-500/30",         category: "productivity" },

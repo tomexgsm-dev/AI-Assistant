@@ -15,7 +15,7 @@ import { useI18n } from "@/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 const APP_EMOJIS: Record<string, string> = {
-  writer: "✍️", coder: "💻", translator: "🌍", analyst: "📊",
+  writer: "✍️", coder: "💻", translator: "🌍", analyst: "📊", photoeditor: "🖼️",
   marketing: "📣", email: "📧", summarizer: "📝", brainstorm: "💡",
   diet: "🥗", travel: "✈️", fitness: "💪", law: "⚖️",
   canva: "🎨", asana: "📋", clickup: "⚡", brand24: "📡",
