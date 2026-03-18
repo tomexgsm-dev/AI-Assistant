@@ -417,7 +417,43 @@ router.post("/images", async (req, res) => {
 
   const size = (body.size ?? "1024x1024") as "1024x1024" | "512x512" | "256x256";
 
-  const buffer = await generateImageBuffer(body.prompt, size);
+  const hfApiKey = process.env.HUGGING_FACE_API_KEY;
+  if (!hfApiKey) {
+    res.status(500).json({ error: "HUGGING_FACE_API_KEY not configured" });
+    return;
+  }
+
+  // Call Hugging Face Inference API — Stable Diffusion XL
+  const hfRes = await fetch(
+    "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${hfApiKey}`,
+        "Content-Type": "application/json",
+        "x-wait-for-model": "true",
+      },
+      body: JSON.stringify({
+        inputs: body.prompt,
+        parameters: {
+          width: 1024,
+          height: 1024,
+          num_inference_steps: 30,
+          guidance_scale: 7.5,
+        },
+      }),
+    }
+  );
+
+  if (!hfRes.ok) {
+    const errText = await hfRes.text();
+    console.error("[HF Image] Error:", hfRes.status, errText);
+    res.status(502).json({ error: "Image generation failed", detail: errText });
+    return;
+  }
+
+  const arrayBuffer = await hfRes.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
   const b64Data = buffer.toString("base64");
 
   const [row] = await db
