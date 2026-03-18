@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
-import { db, conversations, messages, generatedImages, summaries, profiles } from "@workspace/db";
+import { desc, eq, and } from "drizzle-orm";
+import { db, conversations, messages, generatedImages, summaries, profiles, usageLimits } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { generateImageBuffer } from "@workspace/integrations-openai-ai-server/image";
 import {
@@ -8,6 +8,44 @@ import {
   SendOpenaiMessageBody,
   GenerateOpenaiImageBody,
 } from "@workspace/api-zod";
+
+// ─── LIMITS ───────────────────────────────────────────────────────────────────
+const FREE_CHAT_LIMIT = 20;
+const FREE_IMAGE_LIMIT = 3;
+
+function todayStr(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+async function getOrCreateUsage(clientId: string) {
+  const today = todayStr();
+  const [row] = await db
+    .select()
+    .from(usageLimits)
+    .where(and(eq(usageLimits.clientId, clientId), eq(usageLimits.date, today)));
+  if (row) return row;
+  const [created] = await db
+    .insert(usageLimits)
+    .values({ clientId, date: today, chatCount: 0, imageCount: 0, isPro: 0 })
+    .returning();
+  return created;
+}
+
+async function incrementChat(clientId: string) {
+  const today = todayStr();
+  await db
+    .update(usageLimits)
+    .set({ chatCount: (await getOrCreateUsage(clientId)).chatCount + 1, updatedAt: new Date() })
+    .where(and(eq(usageLimits.clientId, clientId), eq(usageLimits.date, today)));
+}
+
+async function incrementImage(clientId: string) {
+  const today = todayStr();
+  await db
+    .update(usageLimits)
+    .set({ imageCount: (await getOrCreateUsage(clientId)).imageCount + 1, updatedAt: new Date() })
+    .where(and(eq(usageLimits.clientId, clientId), eq(usageLimits.date, today)));
+}
 
 const router: IRouter = Router();
 
@@ -155,6 +193,20 @@ router.post("/conversations/:id/messages", async (req, res) => {
   const id = Number(req.params.id);
   const body = SendOpenaiMessageBody.parse(req.body);
 
+  // ── Usage check ──────────────────────────────────────────────────────────
+  const clientId = (req.headers["x-client-id"] as string) || "anonymous";
+  const usage = await getOrCreateUsage(clientId);
+  if (!usage.isPro && usage.chatCount >= FREE_CHAT_LIMIT) {
+    res.status(429).json({
+      error: "limit_reached",
+      type: "chat",
+      used: usage.chatCount,
+      limit: FREE_CHAT_LIMIT,
+    });
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [conversation] = await db
     .select()
     .from(conversations)
@@ -254,6 +306,9 @@ router.post("/conversations/:id/messages", async (req, res) => {
     }
   }
 
+  // Increment chat usage (fire-and-forget)
+  incrementChat(clientId).catch(() => {});
+
   const [savedMsg] = await db
     .insert(messages)
     .values({
@@ -330,6 +385,21 @@ router.get("/images", async (_req, res) => {
 
 router.post("/images", async (req, res) => {
   const body = GenerateOpenaiImageBody.parse(req.body);
+
+  // ── Usage check ──────────────────────────────────────────────────────────
+  const clientId = (req.headers["x-client-id"] as string) || "anonymous";
+  const usage = await getOrCreateUsage(clientId);
+  if (!usage.isPro && usage.imageCount >= FREE_IMAGE_LIMIT) {
+    res.status(429).json({
+      error: "limit_reached",
+      type: "image",
+      used: usage.imageCount,
+      limit: FREE_IMAGE_LIMIT,
+    });
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const size = (body.size ?? "1024x1024") as "1024x1024" | "512x512" | "256x256";
 
   const buffer = await generateImageBuffer(body.prompt, size);
@@ -340,6 +410,9 @@ router.post("/images", async (req, res) => {
     .values({ prompt: body.prompt, size, b64Data })
     .returning();
 
+  // Increment image usage (fire-and-forget)
+  incrementImage(clientId).catch(() => {});
+
   res.status(201).json(row);
 });
 
@@ -347,6 +420,18 @@ router.delete("/images/:id", async (req, res) => {
   const id = Number(req.params.id);
   await db.delete(generatedImages).where(eq(generatedImages.id, id));
   res.status(204).end();
+});
+
+// ── Usage status endpoint ────────────────────────────────────────────────────
+router.get("/usage", async (req, res) => {
+  const clientId = (req.headers["x-client-id"] as string) || "anonymous";
+  const usage = await getOrCreateUsage(clientId);
+  res.json({
+    isPro: !!usage.isPro,
+    chat: { used: usage.chatCount, limit: FREE_CHAT_LIMIT },
+    images: { used: usage.imageCount, limit: FREE_IMAGE_LIMIT },
+    date: usage.date,
+  });
 });
 
 export default router;

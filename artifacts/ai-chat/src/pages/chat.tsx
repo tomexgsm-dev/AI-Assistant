@@ -5,6 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { ChatMessage } from "@/components/chat-message";
 import { useChatStream } from "@/hooks/use-chat-stream";
+import { useUsage } from "@/hooks/use-usage";
+import { UsageBanner } from "@/components/usage-banner";
+import { LimitModal } from "@/components/limit-modal";
 import { Send, Loader2, Brain, Paperclip, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -22,7 +25,9 @@ export default function ChatPage() {
     query: { enabled: !!conversationId }
   });
 
-  const { sendMessage, isStreaming, streamingMessage } = useChatStream(conversationId);
+  const { sendMessage, isStreaming, streamingMessage, streamError, clearError } = useChatStream(conversationId);
+  const { usage, refresh: refreshUsage } = useUsage();
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
   
   const [input, setInput] = useState("");
   const [optimisticUserMsg, setOptimisticUserMsg] = useState<string | null>(null);
@@ -118,10 +123,17 @@ export default function ChatPage() {
       textareaRef.current.style.height = 'auto';
     }
 
-    await sendMessage(content, imageToSend ? {
+    const ok = await sendMessage(content, imageToSend ? {
       imageBase64: imageToSend.base64,
       imageMimeType: imageToSend.mimeType,
     } : undefined);
+
+    if (ok) {
+      refreshUsage();
+    } else {
+      setLimitModalOpen(true);
+      setOptimisticUserMsg(null);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -166,7 +178,13 @@ export default function ChatPage() {
         </div>
       ) : (
         <div className="flex flex-col h-full absolute inset-0">
-          
+
+          <LimitModal
+            open={limitModalOpen}
+            type={streamError?.limitType ?? "chat"}
+            onClose={() => { setLimitModalOpen(false); clearError(); }}
+          />
+
           {hasSummaries && (
             <div className="flex items-center justify-center gap-1.5 py-2 text-xs text-primary/70 bg-primary/5 border-b border-primary/10">
               <Brain className="w-3 h-3" />

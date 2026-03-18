@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { UsageBanner } from "@/components/usage-banner";
+import { useUsage } from "@/hooks/use-usage";
 
 const APP_EMOJIS: Record<string, string> = {
   writer: "✍️", coder: "💻", translator: "🌍", analyst: "📊", photoeditor: "🖼️",
@@ -33,6 +35,7 @@ export function Layout({ children }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const queryClient = useQueryClient();
   const { t } = useI18n();
+  const { usage } = useUsage();
 
   const { data: conversations, isLoading } = useListOpenaiConversations();
 
@@ -210,7 +213,8 @@ export function Layout({ children }: LayoutProps) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="font-display font-semibold ml-2 md:hidden">Nexus AI</div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {usage && <UsageBanner usage={usage} />}
             <LanguageSwitcher />
           </div>
         </header>
