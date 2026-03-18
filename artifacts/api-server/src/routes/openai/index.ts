@@ -3,6 +3,7 @@ import { desc, eq, and } from "drizzle-orm";
 import { db, conversations, messages, generatedImages, summaries, profiles, usageLimits } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { generateImageBuffer } from "@workspace/integrations-openai-ai-server/image";
+import { openrouter } from "@workspace/integrations-openrouter-ai";
 import {
   CreateOpenaiConversationBody,
   SendOpenaiMessageBody,
@@ -297,12 +298,20 @@ router.post("/conversations/:id/messages", async (req, res) => {
 
   let fullResponse = "";
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-5.2",
-    max_completion_tokens: 8192,
-    messages: chatMessages,
-    stream: true,
-  });
+  // Use OpenAI Vision when image is attached; Mistral 7B for text-only
+  const stream = hasImage
+    ? await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 8192,
+        messages: chatMessages as Parameters<typeof openai.chat.completions.create>[0]["messages"],
+        stream: true,
+      })
+    : await openrouter.chat.completions.create({
+        model: "mistralai/mistral-7b-instruct-v0.1",
+        max_tokens: 8192,
+        messages: chatMessages as Parameters<typeof openrouter.chat.completions.create>[0]["messages"],
+        stream: true,
+      });
 
   for await (const chunk of stream) {
     const content = chunk.choices[0]?.delta?.content;
