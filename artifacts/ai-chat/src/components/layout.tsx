@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
-import { MessageSquare, Plus, Trash2, Menu, X, Command, Sparkles } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Menu, X, Command, Sparkles, Image } from "lucide-react";
 import { 
   useListOpenaiConversations, 
   useCreateOpenaiConversation, 
@@ -85,7 +85,7 @@ export function Layout({ children }: LayoutProps) {
           </button>
         </div>
 
-        <div className="p-3">
+        <div className="p-3 space-y-1">
           <button
             onClick={handleNewChat}
             disabled={createMutation.isPending}
@@ -96,8 +96,20 @@ export function Layout({ children }: LayoutProps) {
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            New Conversation
+            Nowa rozmowa
           </button>
+          <Link
+            href="/images"
+            className={cn(
+              "w-full flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 border",
+              location === "/images"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground border-border/50"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-foreground border-transparent"
+            )}
+          >
+            <Image className="w-4 h-4 shrink-0" />
+            Obrazy AI
+          </Link>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1">

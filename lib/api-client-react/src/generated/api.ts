@@ -18,10 +18,12 @@ import type {
 
 import type {
   CreateOpenaiConversationBody,
+  GenerateOpenaiImageBody,
   HealthStatus,
   OpenaiConversation,
   OpenaiConversationWithMessages,
   OpenaiError,
+  OpenaiGeneratedImage,
   OpenaiMessage,
   SendOpenaiMessageBody,
 } from "./api.schemas";
@@ -447,6 +449,251 @@ export const useDeleteOpenaiConversation = <
   TContext
 > => {
   return useMutation(getDeleteOpenaiConversationMutationOptions(options));
+};
+
+/**
+ * @summary List all generated images
+ */
+export const getListOpenaiImagesUrl = () => {
+  return `/api/openai/images`;
+};
+
+export const listOpenaiImages = async (
+  options?: RequestInit,
+): Promise<OpenaiGeneratedImage[]> => {
+  return customFetch<OpenaiGeneratedImage[]>(getListOpenaiImagesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListOpenaiImagesQueryKey = () => {
+  return [`/api/openai/images`] as const;
+};
+
+export const getListOpenaiImagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOpenaiImages>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listOpenaiImages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListOpenaiImagesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listOpenaiImages>>
+  > = ({ signal }) => listOpenaiImages({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOpenaiImages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListOpenaiImagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOpenaiImages>>
+>;
+export type ListOpenaiImagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all generated images
+ */
+
+export function useListOpenaiImages<
+  TData = Awaited<ReturnType<typeof listOpenaiImages>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listOpenaiImages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListOpenaiImagesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate an image from a text prompt
+ */
+export const getGenerateOpenaiImageUrl = () => {
+  return `/api/openai/images`;
+};
+
+export const generateOpenaiImage = async (
+  generateOpenaiImageBody: GenerateOpenaiImageBody,
+  options?: RequestInit,
+): Promise<OpenaiGeneratedImage> => {
+  return customFetch<OpenaiGeneratedImage>(getGenerateOpenaiImageUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(generateOpenaiImageBody),
+  });
+};
+
+export const getGenerateOpenaiImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateOpenaiImage>>,
+    TError,
+    { data: BodyType<GenerateOpenaiImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateOpenaiImage>>,
+  TError,
+  { data: BodyType<GenerateOpenaiImageBody> },
+  TContext
+> => {
+  const mutationKey = ["generateOpenaiImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateOpenaiImage>>,
+    { data: BodyType<GenerateOpenaiImageBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateOpenaiImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateOpenaiImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateOpenaiImage>>
+>;
+export type GenerateOpenaiImageMutationBody = BodyType<GenerateOpenaiImageBody>;
+export type GenerateOpenaiImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate an image from a text prompt
+ */
+export const useGenerateOpenaiImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateOpenaiImage>>,
+    TError,
+    { data: BodyType<GenerateOpenaiImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateOpenaiImage>>,
+  TError,
+  { data: BodyType<GenerateOpenaiImageBody> },
+  TContext
+> => {
+  return useMutation(getGenerateOpenaiImageMutationOptions(options));
+};
+
+/**
+ * @summary Delete a generated image
+ */
+export const getDeleteOpenaiImageUrl = (id: number) => {
+  return `/api/openai/images/${id}`;
+};
+
+export const deleteOpenaiImage = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteOpenaiImageUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteOpenaiImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteOpenaiImage>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteOpenaiImage>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteOpenaiImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteOpenaiImage>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteOpenaiImage(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteOpenaiImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteOpenaiImage>>
+>;
+
+export type DeleteOpenaiImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a generated image
+ */
+export const useDeleteOpenaiImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteOpenaiImage>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteOpenaiImage>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteOpenaiImageMutationOptions(options));
 };
 
 /**

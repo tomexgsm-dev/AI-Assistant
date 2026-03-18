@@ -64,6 +64,33 @@ export const DeleteOpenaiConversationParams = zod.object({
 });
 
 /**
+ * @summary List all generated images
+ */
+export const ListOpenaiImagesResponseItem = zod.object({
+  id: zod.number(),
+  prompt: zod.string(),
+  size: zod.string(),
+  b64Data: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListOpenaiImagesResponse = zod.array(ListOpenaiImagesResponseItem);
+
+/**
+ * @summary Generate an image from a text prompt
+ */
+export const GenerateOpenaiImageBody = zod.object({
+  prompt: zod.string(),
+  size: zod.enum(["1024x1024", "512x512", "256x256"]).optional(),
+});
+
+/**
+ * @summary Delete a generated image
+ */
+export const DeleteOpenaiImageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List messages in a conversation
  */
 export const ListOpenaiMessagesParams = zod.object({

@@ -41,3 +41,25 @@ export interface OpenaiConversationWithMessages {
 export interface OpenaiError {
   error: string;
 }
+
+export type GenerateOpenaiImageBodySize =
+  (typeof GenerateOpenaiImageBodySize)[keyof typeof GenerateOpenaiImageBodySize];
+
+export const GenerateOpenaiImageBodySize = {
+  "1024x1024": "1024x1024",
+  "512x512": "512x512",
+  "256x256": "256x256",
+} as const;
+
+export interface GenerateOpenaiImageBody {
+  prompt: string;
+  size?: GenerateOpenaiImageBodySize;
+}
+
+export interface OpenaiGeneratedImage {
+  id: number;
+  prompt: string;
+  size: string;
+  b64Data: string;
+  createdAt: string;
+}

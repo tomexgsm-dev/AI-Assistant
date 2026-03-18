@@ -7,9 +7,12 @@
  */
 
 export * from "./createOpenaiConversationBody";
+export * from "./generateOpenaiImageBody";
+export * from "./generateOpenaiImageBodySize";
 export * from "./healthStatus";
 export * from "./openaiConversation";
 export * from "./openaiConversationWithMessages";
 export * from "./openaiError";
+export * from "./openaiGeneratedImage";
 export * from "./openaiMessage";
 export * from "./sendOpenaiMessageBody";
