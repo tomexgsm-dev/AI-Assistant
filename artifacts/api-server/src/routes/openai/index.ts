@@ -423,9 +423,9 @@ router.post("/images", async (req, res) => {
     return;
   }
 
-  // Call Hugging Face Inference API — Stable Diffusion XL
+  // Call Hugging Face Router API — Stable Diffusion XL
   const hfRes = await fetch(
-    "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+    "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0",
     {
       method: "POST",
       headers: {
