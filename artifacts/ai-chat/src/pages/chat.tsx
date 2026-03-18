@@ -1,15 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRoute } from "wouter";
-import { useGetOpenaiConversation } from "@workspace/api-client-react";
+import { useGetOpenaiConversation, getGetOpenaiConversationQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { ChatMessage } from "@/components/chat-message";
 import { useChatStream } from "@/hooks/use-chat-stream";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const API_BASE = "/api";
 
 export default function ChatPage() {
   const [, params] = useRoute("/c/:id");
   const conversationId = params?.id ? parseInt(params.id) : undefined;
+  const queryClient = useQueryClient();
 
   const { data: conversation, isLoading, isError } = useGetOpenaiConversation(conversationId!, {
     query: { enabled: !!conversationId }
@@ -19,11 +23,11 @@ export default function ChatPage() {
   
   const [input, setInput] = useState("");
   const [optimisticUserMsg, setOptimisticUserMsg] = useState<string | null>(null);
+  const [localRatings, setLocalRatings] = useState<Record<number, 1 | -1 | null>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -32,12 +36,25 @@ export default function ChatPage() {
     scrollToBottom();
   }, [conversation?.messages, streamingMessage, optimisticUserMsg]);
 
-  // Clear optimistic UI when real messages load or stream starts
   useEffect(() => {
     if (isStreaming) {
       setOptimisticUserMsg(null);
     }
   }, [isStreaming]);
+
+  const handleRate = useCallback(async (messageId: number, rating: 1 | -1 | null) => {
+    setLocalRatings(prev => ({ ...prev, [messageId]: rating }));
+    try {
+      await fetch(`${API_BASE}/openai/messages/${messageId}/rating`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      });
+      queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(conversationId!) });
+    } catch (_e) {
+      setLocalRatings(prev => ({ ...prev, [messageId]: null }));
+    }
+  }, [conversationId, queryClient]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +64,6 @@ export default function ChatPage() {
     setInput("");
     setOptimisticUserMsg(content);
     
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -68,6 +84,7 @@ export default function ChatPage() {
   };
 
   const messages = conversation?.messages || [];
+  const hasSummaries = messages.length >= 10;
 
   return (
     <Layout>
@@ -77,11 +94,19 @@ export default function ChatPage() {
         </div>
       ) : isError || !conversation ? (
         <div className="flex h-full items-center justify-center text-destructive">
-          Failed to load conversation. It may have been deleted.
+          Nie można załadować rozmowy. Mogła zostać usunięta.
         </div>
       ) : (
         <div className="flex flex-col h-full absolute inset-0">
           
+          {/* Memory indicator */}
+          {hasSummaries && (
+            <div className="flex items-center justify-center gap-1.5 py-2 text-xs text-primary/70 bg-primary/5 border-b border-primary/10">
+              <Brain className="w-3 h-3" />
+              <span>Nexus AI pamięta kontekst tej rozmowy</span>
+            </div>
+          )}
+
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto pb-32">
             {messages.length === 0 && !optimisticUserMsg && (
@@ -89,26 +114,49 @@ export default function ChatPage() {
                 <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6 shadow-lg shadow-black/20 border border-border">
                   <div className="w-8 h-8 bg-primary rounded-full shadow-glow animate-pulse" />
                 </div>
-                <h2 className="text-2xl font-display font-bold mb-2">How can I help you today?</h2>
-                <p className="text-muted-foreground">
-                  I'm an intelligent AI assistant. Ask me anything, from coding to writing, or just chat.
-                </p>
+                {conversation.appId ? (
+                  <>
+                    <h2 className="text-2xl font-display font-bold mb-2">{conversation.title}</h2>
+                    <p className="text-muted-foreground">
+                      Wyspecjalizowany asystent AI gotowy do pomocy. Napisz swoją pierwszą wiadomość.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-2xl font-display font-bold mb-2">Jak mogę Ci pomóc?</h2>
+                    <p className="text-muted-foreground">
+                      Jestem inteligentnym asystentem AI. Zapytaj mnie o cokolwiek — kod, pisanie, analizę lub zwykłą rozmowę.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
             {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
+              <div key={msg.id} className="group">
+                <ChatMessage
+                  message={{
+                    ...msg,
+                    rating: localRatings[msg.id] !== undefined ? localRatings[msg.id] : msg.rating,
+                  }}
+                  onRate={handleRate}
+                />
+              </div>
             ))}
 
             {optimisticUserMsg && (
-              <ChatMessage message={{ role: "user", content: optimisticUserMsg }} />
+              <div className="group">
+                <ChatMessage message={{ id: 0, role: "user", content: optimisticUserMsg, rating: null }} />
+              </div>
             )}
 
             {(isStreaming || streamingMessage) && (
-              <ChatMessage 
-                message={{ role: "assistant", content: streamingMessage }} 
-                isStreaming={true} 
-              />
+              <div className="group">
+                <ChatMessage 
+                  message={{ id: 0, role: "assistant", content: streamingMessage, rating: null }} 
+                  isStreaming={true} 
+                />
+              </div>
             )}
             
             <div ref={messagesEndRef} className="h-4" />
@@ -129,7 +177,7 @@ export default function ChatPage() {
                     autoResize(e);
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder="Message Nexus AI..."
+                  placeholder="Napisz wiadomość do Nexus AI..."
                   className="w-full max-h-[200px] min-h-[44px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:outline-none py-3 px-4 text-base"
                   rows={1}
                 />
@@ -147,7 +195,7 @@ export default function ChatPage() {
                 </button>
               </form>
               <div className="text-center mt-2 text-xs text-muted-foreground/70">
-                AI can make mistakes. Consider verifying important information.
+                AI może popełniać błędy. Sprawdzaj ważne informacje.
               </div>
             </div>
           </div>

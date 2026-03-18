@@ -222,6 +222,9 @@ components:
           type: string
         content:
           type: string
+        rating:
+          type: integer
+          nullable: true
         createdAt:
           type: string
           format: date-time

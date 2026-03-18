@@ -1,0 +1,139 @@
+📊 NOWA TABELA w Supabase
+
+tabela: summaries
+
+kolumny:
+
+id
+
+user_id
+
+summary (text)
+
+created_at
+
+💻 funkcja zapisu podsumowania
+async function saveSummary(user_id, summary) {
+  await supabase.from("summaries").insert([
+    { user_id, summary }
+  ]);
+}
+🧠 generowanie podsumowania (co X wiadomości)
+
+Dodaj:
+
+async function generateSummary(messages) {
+  const text = messages.map(m => m.content).join("\n");
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4.1-mini",
+    messages: [
+      {
+        role: "system",
+        content: "Podsumuj najważniejsze informacje o użytkowniku i jego celach."
+      },
+      {
+        role: "user",
+        content: text
+      }
+    ]
+  });
+
+  return completion.choices[0].message.content;
+}
+👉 kiedy to odpalać:
+
+np. co 10 wiadomości:
+
+if (memory.length % 10 === 0) {
+  const summary = await generateSummary(memory);
+  await saveSummary(user_id, summary);
+}
+🧠 2. PROFIL UŻYTKOWNIKA (AI „zna go”)
+📊 tabela: profiles
+
+kolumny:
+
+user_id
+
+info (text)
+
+💻 funkcja:
+async function updateProfile(user_id, summary) {
+  await supabase.from("profiles").upsert({
+    user_id,
+    info: summary
+  });
+}
+
+👉 zapisujesz:
+
+cele
+
+zainteresowania
+
+styl rozmowy
+
+⭐ 3. OCENA ODPOWIEDZI (uczenie)
+📊 tabela: feedback
+
+kolumny:
+
+user_id
+
+message
+
+rating (1 / -1)
+
+👉 później możesz:
+
+poprawiać odpowiedzi
+
+trenować lepsze prompty
+
+🔥 4. ULEPSZONY SYSTEM AI
+
+Zmieniasz /chat:
+
+const summaries = await supabase
+  .from("summaries")
+  .select("summary")
+  .eq("user_id", user_id)
+  .limit(3);
+
+const profile = await supabase
+  .from("profiles")
+  .select("info")
+  .eq("user_id", user_id)
+  .single();
+
+const messages = [
+  {
+    role: "system",
+    content: `
+Jesteś zaawansowanym AI.
+
+Profil użytkownika:
+${profile?.data?.info || ""}
+
+Wnioski z poprzednich rozmów:
+${summaries.data.map(s => s.summary).join("\n")}
+`
+  },
+  ...memory.map(m => ({
+    role: m.role,
+    content: m.content
+  })),
+  {
+    role: "user",
+    content: message
+  }
+];
+🧠 EFEKT (duża różnica 🔥)
+
+Twoje AI:
+
+✅ pamięta stare rozmowy
+✅ rozumie użytkownika
+✅ uczy się jego stylu
+✅ daje coraz lepsze odpowiedzi

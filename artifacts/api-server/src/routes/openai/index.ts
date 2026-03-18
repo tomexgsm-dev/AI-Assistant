@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, conversations, messages, generatedImages } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
+import { db, conversations, messages, generatedImages, summaries, profiles } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { generateImageBuffer } from "@workspace/integrations-openai-ai-server/image";
 import {
@@ -10,6 +10,79 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+const defaultSystemPrompt =
+  "Jesteś inteligentnym, ogólnym AI asystentem. Pomagasz w każdej dziedzinie życia. Odpowiadasz zawsze w tym samym języku co użytkownik.";
+
+async function getOrCreateProfile(): Promise<string> {
+  const [profile] = await db.select().from(profiles).limit(1);
+  return profile?.info ?? "";
+}
+
+async function getRecentSummaries(conversationId: number): Promise<string> {
+  const rows = await db
+    .select()
+    .from(summaries)
+    .where(eq(summaries.conversationId, conversationId))
+    .orderBy(desc(summaries.createdAt))
+    .limit(3);
+  return rows
+    .reverse()
+    .map((s) => s.summary)
+    .join("\n\n");
+}
+
+async function generateAndSaveSummary(conversationId: number, msgs: { role: string; content: string }[]): Promise<void> {
+  try {
+    const text = msgs.map((m) => `${m.role}: ${m.content}`).join("\n");
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Podsumuj najważniejsze informacje z tej rozmowy: cele użytkownika, ustalenia, kluczowe fakty. Bądź zwięzły (max 200 słów). Pisz po polsku.",
+        },
+        { role: "user", content: text },
+      ],
+    });
+    const summary = completion.choices[0].message.content ?? "";
+    if (summary) {
+      await db.insert(summaries).values({
+        conversationId,
+        summary,
+        messageCount: msgs.length,
+      });
+
+      const profileInfo = await getOrCreateProfile();
+      const profileCompletion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Na podstawie profilu użytkownika i nowego podsumowania rozmowy, stwórz zaktualizowany profil użytkownika. Uwzględnij: zainteresowania, cele, styl komunikacji, zawód, preferencje. Max 300 słów. Pisz po polsku.",
+          },
+          {
+            role: "user",
+            content: `Aktualny profil:\n${profileInfo || "(brak)"}\n\nNowe podsumowanie:\n${summary}`,
+          },
+        ],
+      });
+      const newProfile = profileCompletion.choices[0].message.content ?? "";
+      if (newProfile) {
+        const [existing] = await db.select().from(profiles).limit(1);
+        if (existing) {
+          await db.update(profiles).set({ info: newProfile, updatedAt: new Date() }).where(eq(profiles.id, existing.id));
+        } else {
+          await db.insert(profiles).values({ info: newProfile });
+        }
+      }
+    }
+  } catch (_err) {
+    // Non-critical — don't break the chat flow
+  }
+}
 
 router.get("/conversations", async (_req, res) => {
   const rows = await db
@@ -104,14 +177,25 @@ router.post("/conversations/:id/messages", async (req, res) => {
     .where(eq(messages.conversationId, id))
     .orderBy(messages.createdAt);
 
-  const defaultSystemPrompt =
-    "Jesteś inteligentnym, ogólnym AI asystentem. Pomagasz w każdej dziedzinie życia.";
+  const [profileInfo, recentSummaries] = await Promise.all([
+    getOrCreateProfile(),
+    getRecentSummaries(id),
+  ]);
+
+  const memoryBlock = [
+    profileInfo ? `Profil użytkownika:\n${profileInfo}` : "",
+    recentSummaries ? `Wnioski z poprzednich części rozmowy:\n${recentSummaries}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const basePrompt = conversation.systemPrompt ?? defaultSystemPrompt;
+  const fullSystemPrompt = memoryBlock
+    ? `${basePrompt}\n\n---\n${memoryBlock}`
+    : basePrompt;
 
   const chatMessages = [
-    {
-      role: "system" as const,
-      content: conversation.systemPrompt ?? defaultSystemPrompt,
-    },
+    { role: "system" as const, content: fullSystemPrompt },
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -139,14 +223,70 @@ router.post("/conversations/:id/messages", async (req, res) => {
     }
   }
 
-  await db.insert(messages).values({
-    conversationId: id,
-    role: "assistant",
-    content: fullResponse,
-  });
+  const [savedMsg] = await db
+    .insert(messages)
+    .values({
+      conversationId: id,
+      role: "assistant",
+      content: fullResponse,
+    })
+    .returning();
 
-  res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+  res.write(`data: ${JSON.stringify({ done: true, messageId: savedMsg.id })}\n\n`);
   res.end();
+
+  // After streaming: auto-generate summary every 10 messages (non-blocking)
+  const totalMessages = history.length + 1;
+  if (totalMessages % 10 === 0) {
+    const allMsgs = [...history, { role: "assistant", content: fullResponse }];
+    generateAndSaveSummary(id, allMsgs).catch(() => {});
+  }
+});
+
+// Rate a message (1 = thumbs up, -1 = thumbs down)
+router.patch("/messages/:id/rating", async (req, res) => {
+  const id = Number(req.params.id);
+  const { rating } = req.body as { rating: 1 | -1 | null };
+  if (rating !== 1 && rating !== -1 && rating !== null) {
+    res.status(400).json({ error: "rating must be 1, -1, or null" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(messages)
+    .set({ rating })
+    .where(eq(messages.id, id))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+
+  res.json(updated);
+});
+
+// Get conversation summaries
+router.get("/conversations/:id/summaries", async (req, res) => {
+  const id = Number(req.params.id);
+  const rows = await db
+    .select()
+    .from(summaries)
+    .where(eq(summaries.conversationId, id))
+    .orderBy(desc(summaries.createdAt));
+  res.json(rows);
+});
+
+// Get user profile (global memory)
+router.get("/profile", async (_req, res) => {
+  const [profile] = await db.select().from(profiles).limit(1);
+  res.json(profile ?? { info: "" });
+});
+
+// Clear user profile
+router.delete("/profile", async (_req, res) => {
+  await db.delete(profiles);
+  res.status(204).end();
 });
 
 router.get("/images", async (_req, res) => {

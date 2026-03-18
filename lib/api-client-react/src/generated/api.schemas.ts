@@ -21,6 +21,7 @@ export interface OpenaiMessage {
   conversationId: number;
   role: string;
   content: string;
+  rating?: number | null;
   createdAt: string;
 }
 

@@ -1,17 +1,32 @@
+import { useState } from "react";
 import { OpenaiMessage } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, User } from "lucide-react";
+import { Bot, User, ThumbsUp, ThumbsDown, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ChatMessageProps {
-  message: Pick<OpenaiMessage, "role" | "content">;
+  message: Pick<OpenaiMessage, "id" | "role" | "content" | "rating">;
   isStreaming?: boolean;
+  onRate?: (messageId: number, rating: 1 | -1 | null) => void;
 }
 
-export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming, onRate }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRate = (value: 1 | -1) => {
+    if (!onRate || !message.id) return;
+    const newRating = message.rating === value ? null : value;
+    onRate(message.id, newRating);
+  };
 
   return (
     <motion.div
@@ -37,9 +52,9 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
 
         <div className="flex-1 min-w-0 space-y-2">
           <div className="font-semibold text-sm text-muted-foreground mb-1">
-            {isUser ? "You" : "Nexus AI"}
+            {isUser ? "Ty" : "Nexus AI"}
           </div>
-          
+
           <div className={cn(
             "prose prose-invert prose-p:leading-relaxed prose-pre:p-0",
             isStreaming && !isUser && "after:content-[''] after:inline-block after:w-1.5 after:h-4 after:bg-primary after:ml-1 after:animate-pulse"
@@ -48,6 +63,46 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
               {message.content || (isStreaming ? "" : "...")}
             </ReactMarkdown>
           </div>
+
+          {!isUser && !isStreaming && (
+            <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={handleCopy}
+                title="Kopiuj"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              {onRate && message.id && (
+                <>
+                  <button
+                    onClick={() => handleRate(1)}
+                    title="Dobra odpowiedź"
+                    className={cn(
+                      "p-1.5 rounded-lg transition-colors",
+                      message.rating === 1
+                        ? "text-green-400 bg-green-400/10"
+                        : "text-muted-foreground hover:text-green-400 hover:bg-green-400/10"
+                    )}
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleRate(-1)}
+                    title="Zła odpowiedź"
+                    className={cn(
+                      "p-1.5 rounded-lg transition-colors",
+                      message.rating === -1
+                        ? "text-red-400 bg-red-400/10"
+                        : "text-muted-foreground hover:text-red-400 hover:bg-red-400/10"
+                    )}
+                  >
+                    <ThumbsDown className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
