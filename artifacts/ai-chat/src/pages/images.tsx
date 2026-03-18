@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Trash2, Download, Loader2, ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/i18n";
 
 const SIZES = [
   { label: "1024×1024", value: "1024x1024" },
@@ -12,13 +13,15 @@ const SIZES = [
   { label: "256×256", value: "256x256" },
 ] as const;
 
-const STYLE_PROMPTS = [
-  { label: "Portret anime", prompt: "anime style portrait" },
-  { label: "Fotorealistyczny", prompt: "photorealistic, ultra detailed" },
-  { label: "Akwarela", prompt: "watercolor painting style" },
-  { label: "Pixel Art", prompt: "pixel art style" },
-  { label: "Olejny obraz", prompt: "oil painting style" },
-  { label: "Cinematic", prompt: "cinematic photograph, dramatic lighting" },
+type StyleKey = "anime" | "photo" | "watercolor" | "pixel" | "oil" | "cinematic";
+
+const STYLE_PROMPTS: { key: StyleKey; prompt: string }[] = [
+  { key: "anime", prompt: "anime style portrait" },
+  { key: "photo", prompt: "photorealistic, ultra detailed" },
+  { key: "watercolor", prompt: "watercolor painting style" },
+  { key: "pixel", prompt: "pixel art style" },
+  { key: "oil", prompt: "oil painting style" },
+  { key: "cinematic", prompt: "cinematic photograph, dramatic lighting" },
 ];
 
 export default function ImagesPage() {
@@ -26,6 +29,7 @@ export default function ImagesPage() {
   const [size, setSize] = useState<"1024x1024" | "512x512" | "256x256">("1024x1024");
   const [selectedImage, setSelectedImage] = useState<{ id: number; b64Data: string; prompt: string } | null>(null);
   const queryClient = useQueryClient();
+  const { t } = useI18n();
 
   const { data: images, isLoading } = useListOpenaiImages();
 
@@ -57,10 +61,10 @@ export default function ImagesPage() {
     setPrompt(prev => prev ? `${prev}, ${stylePrompt}` : stylePrompt);
   };
 
-  const handleDownload = (b64Data: string, prompt: string) => {
+  const handleDownload = (b64Data: string, imgPrompt: string) => {
     const link = document.createElement("a");
     link.href = `data:image/png;base64,${b64Data}`;
-    link.download = `${prompt.slice(0, 40).replace(/[^a-z0-9]/gi, "_")}.png`;
+    link.download = `${imgPrompt.slice(0, 40).replace(/[^a-z0-9]/gi, "_")}.png`;
     link.click();
   };
 
@@ -69,49 +73,45 @@ export default function ImagesPage() {
       <div className="flex flex-col h-full absolute inset-0 overflow-y-auto">
         <div className="max-w-5xl mx-auto w-full px-4 md:px-8 py-8 pb-32">
 
-          {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
                 <ImageIcon className="w-5 h-5 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold">Generowanie Obrazów</h1>
+              <h1 className="text-2xl font-bold">{t.images.title}</h1>
             </div>
-            <p className="text-muted-foreground text-sm">Twórz obrazy AI na podstawie opisu tekstowego</p>
+            <p className="text-muted-foreground text-sm">{t.images.subtitle}</p>
           </div>
 
-          {/* Generation Form */}
           <div className="bg-card border border-border rounded-2xl p-5 mb-6 shadow-lg">
             <form onSubmit={handleGenerate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Opis obrazu</label>
+                <label className="block text-sm font-medium mb-2">{t.images.promptLabel}</label>
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Opisz obraz który chcesz wygenerować... np. 'Zachód słońca nad górami, realistyczny, piękne kolory'"
+                  placeholder={t.images.promptPlaceholder}
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 min-h-[80px] placeholder:text-muted-foreground"
                   rows={3}
                 />
               </div>
 
-              {/* Style shortcuts */}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-2">Szybkie style</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-2">{t.images.quickStyles}</label>
                 <div className="flex flex-wrap gap-2">
                   {STYLE_PROMPTS.map(s => (
                     <button
-                      key={s.label}
+                      key={s.key}
                       type="button"
                       onClick={() => handleStyleClick(s.prompt)}
                       className="px-3 py-1.5 text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg border border-border/50 transition-colors"
                     >
-                      {s.label}
+                      {t.images.styles[s.key]}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Size + Submit */}
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-1 bg-background border border-border rounded-xl p-1">
                   {SIZES.map(s => (
@@ -144,12 +144,12 @@ export default function ImagesPage() {
                   {generateMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Generuję...
+                      {t.images.generating}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      Generuj
+                      {t.images.generateBtn}
                     </>
                   )}
                 </button>
@@ -163,15 +163,14 @@ export default function ImagesPage() {
                 className="mt-4 flex items-center gap-3 text-sm text-muted-foreground bg-primary/5 border border-primary/20 rounded-xl px-4 py-3"
               >
                 <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                Generowanie może zająć 15–30 sekund...
+                {t.images.generatingInfo}
               </motion.div>
             )}
           </div>
 
-          {/* Gallery */}
           <div>
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-              Moje obrazy {images && images.length > 0 && `(${images.length})`}
+              {t.images.myImages} {images && images.length > 0 && `(${images.length})`}
             </h2>
 
             {isLoading ? (
@@ -183,14 +182,11 @@ export default function ImagesPage() {
             ) : !images || images.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
                 <ImageIcon className="w-12 h-12 mb-4 opacity-30" />
-                <p className="font-medium">Brak wygenerowanych obrazów</p>
-                <p className="text-sm mt-1">Stwórz swój pierwszy obraz powyżej</p>
+                <p className="font-medium">{t.images.noImages}</p>
+                <p className="text-sm mt-1">{t.images.noImagesHint}</p>
               </div>
             ) : (
-              <motion.div
-                className="grid grid-cols-2 md:grid-cols-3 gap-4"
-                layout
-              >
+              <motion.div className="grid grid-cols-2 md:grid-cols-3 gap-4" layout>
                 <AnimatePresence>
                   {[...images].reverse().map(img => (
                     <motion.div
@@ -261,7 +257,7 @@ export default function ImagesPage() {
                     className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl text-sm font-medium transition-colors"
                   >
                     <Download className="w-4 h-4" />
-                    Pobierz
+                    {t.images.download}
                   </button>
                   <button
                     onClick={() => deleteMutation.mutate({ id: selectedImage.id })}
@@ -273,7 +269,7 @@ export default function ImagesPage() {
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}
-                    Usuń
+                    {t.images.delete}
                   </button>
                 </div>
               </div>

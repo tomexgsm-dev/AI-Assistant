@@ -1,21 +1,19 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "wouter";
 import { AlertCircle } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 export default function NotFound() {
+  const { t } = useI18n();
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen w-full flex items-center justify-center bg-background text-foreground">
+      <div className="text-center space-y-4 max-w-md px-4">
+        <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
+        <h1 className="text-3xl font-bold">{t.notFound.title}</h1>
+        <p className="text-muted-foreground">{t.notFound.subtitle}</p>
+        <Link href="/" className="inline-block mt-4 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-opacity">
+          {t.notFound.backHome}
+        </Link>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bot, User, ThumbsUp, ThumbsDown, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/i18n";
 
 interface ChatMessageProps {
   message: Pick<OpenaiMessage, "id" | "role" | "content" | "rating">;
@@ -15,6 +16,7 @@ interface ChatMessageProps {
 export function ChatMessage({ message, isStreaming, onRate }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -52,7 +54,7 @@ export function ChatMessage({ message, isStreaming, onRate }: ChatMessageProps) 
 
         <div className="flex-1 min-w-0 space-y-2">
           <div className="font-semibold text-sm text-muted-foreground mb-1">
-            {isUser ? "Ty" : "Nexus AI"}
+            {isUser ? t.chat.you : t.chat.assistant}
           </div>
 
           <div className={cn(
@@ -68,7 +70,7 @@ export function ChatMessage({ message, isStreaming, onRate }: ChatMessageProps) 
             <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={handleCopy}
-                title="Kopiuj"
+                title={t.chat.copy}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -77,7 +79,7 @@ export function ChatMessage({ message, isStreaming, onRate }: ChatMessageProps) 
                 <>
                   <button
                     onClick={() => handleRate(1)}
-                    title="Dobra odpowiedź"
+                    title={t.chat.goodResponse}
                     className={cn(
                       "p-1.5 rounded-lg transition-colors",
                       message.rating === 1
@@ -89,7 +91,7 @@ export function ChatMessage({ message, isStreaming, onRate }: ChatMessageProps) 
                   </button>
                   <button
                     onClick={() => handleRate(-1)}
-                    title="Zła odpowiedź"
+                    title={t.chat.badResponse}
                     className={cn(
                       "p-1.5 rounded-lg transition-colors",
                       message.rating === -1

@@ -3,9 +3,11 @@ import { Sparkles, ArrowRight } from "lucide-react";
 import { useCreateOpenaiConversation } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
+import { useI18n } from "@/i18n";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const { t } = useI18n();
   const createMutation = useCreateOpenaiConversation({
     mutation: {
       onSuccess: (data) => {
@@ -24,7 +26,6 @@ export default function Home() {
     <Layout>
       <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-hidden">
         
-        {/* Background Image Integration */}
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
           <img 
             src={`${import.meta.env.BASE_URL}images/empty-state-bg.png`} 
@@ -41,10 +42,10 @@ export default function Home() {
           
           <div className="space-y-4">
             <h1 className="text-4xl md:text-5xl font-display font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-foreground to-muted-foreground">
-              Welcome to Nexus AI
+              {t.home.welcome}
             </h1>
             <p className="text-lg text-muted-foreground/80 leading-relaxed max-w-md mx-auto">
-              Experience intelligent conversations powered by advanced language models in a distraction-free environment.
+              {t.home.subtitle}
             </p>
           </div>
 
@@ -58,11 +59,11 @@ export default function Home() {
             {createMutation.isPending ? (
               <span className="flex items-center gap-2">
                 <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                Initializing...
+                {t.home.starting}
               </span>
             ) : (
               <span className="flex items-center gap-2 relative z-10">
-                Start a New Conversation
+                {t.home.startBtn}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             )}
