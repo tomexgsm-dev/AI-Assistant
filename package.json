@@ -2,13 +2,10 @@
   "name": "ai-assistant",
   "version": "1.0.0",
   "description": "AI Assistant App",
-  "main": "server.js",
+  "main": "lib/index.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "npm install",
-    "dev": "node server.js"
+    "start": "node lib/index.js"
   },
-  "dependencies": {},
   "engines": {
     "node": ">=18"
   }
